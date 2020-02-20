@@ -8,8 +8,7 @@ import (
 )
 
 func TestClientWithAuth(t *testing.T) {
-	username := "TheHalfDeafChef"
-	password := `PASSWORD`
+
 
 	client, err := ClientWithAuth(username, password)
 	if err != nil {
