@@ -5,22 +5,25 @@ package hnapi
 
 import (
 	"fmt"
-	"log"
-
+	"golang.org/x/net/publicsuffix"
 	"gopkg.in/zabawaba99/firego.v1"
+	"log"
+	"net/http"
+	"net/http/cookiejar"
+	"net/url"
 )
 
 const baseURL = "https://hacker-news.firebaseio.com"
-
+const httpURL = "https://news.ycombinator.com/"
 const version = "/v0"
 
 var endPoint = map[string]string{
-	"top":  "/v0/topstories",
-	"new":  "/v0/newstories",
-	"best": "/v0/beststories",
-	"ask":  "/v0/askstories",
-	"jobs": "/v0/jobstories",
-	"show": "/v0/showstories",
+	"top":  "/topstories",
+	"new":  "/newstories",
+	"best": "/beststories",
+	"ask":  "/askstories",
+	"jobs": "/jobstories",
+	"show": "/showstories",
 }
 
 // HNdb has an embedded struct for the firebase interface
@@ -28,10 +31,11 @@ type HNdb struct {
 	*firego.Firebase
 }
 
-// New establishes an API to Hacker New's Firebase.
-func New() *HNdb {
+// NewHNdb establishes an API to Hacker New's Firebase.
+func NewHNdb() *HNdb {
+	hnURL := baseURL + version
 	return &HNdb{
-		Firebase: firego.New(baseURL, nil),
+		firego.New(hnURL, nil),
 	}
 }
 
@@ -90,4 +94,38 @@ func (db *HNdb) GetPosts(req *Request) (contentChan chan *Item) {
 		}(id)
 	}
 	return contentChan
+}
+
+// ClientWithAuth returns a client with the the authenticated session cookie
+func ClientWithAuth(username, password string) (*http.Client, error) {
+	options := cookiejar.Options{
+		PublicSuffixList: publicsuffix.List,
+	}
+
+	jar, err := cookiejar.New(&options)
+	if err != nil {
+		return nil, err
+	}
+
+	//u, _ := url.ParseRequestURI(apiUrl)
+	//u.Path = resource
+	//urlStr := u.String() // "https://news.ycombinator.com/login"
+
+	client := &http.Client{
+		Jar: jar,
+	}
+
+	resp, err := client.PostForm(httpURL + "login", url.Values{
+		"acct": {username},
+		"pw": {password},
+		"goto": {`news`},
+	})
+	if err != nil {
+		return nil, err
+	}
+	for _, cookie := range resp.Cookies() {
+		fmt.Printf("cookie:  %+v", cookie)
+	}
+
+	return client, nil
 }
